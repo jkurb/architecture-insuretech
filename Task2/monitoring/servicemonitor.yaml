@@ -1,0 +1,19 @@
+# Часть 2. ServiceMonitor — Prometheus Operator (kube-prometheus-stack) будет
+# скрейпить /metrics приложения через Service test-app по порту http.
+#
+# Метка release должна совпадать с именем релиза kube-prometheus-stack
+# (ниже предполагается, что стек установлен как `monitoring`).
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  name: test-app
+  labels:
+    release: monitoring
+spec:
+  selector:
+    matchLabels:
+      app: test-app
+  endpoints:
+    - port: http          # имя порта из service.yaml
+      path: /metrics
+      interval: 10s

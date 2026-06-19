@@ -1,0 +1,25 @@
+# Часть 2. Values для Helm-чарта prometheus-community/prometheus-adapter.
+# Адаптер публикует custom-метрику http_requests_per_second (RPS на под)
+# в API custom.metrics.k8s.io, чтобы HPA мог по ней масштабировать.
+#
+# URL Prometheus указан для релиза kube-prometheus-stack с именем `monitoring`
+# в namespace `monitoring`. Если имя релиза другое — поправьте host.
+prometheus:
+  url: http://monitoring-kube-prometheus-prometheus.monitoring.svc
+  port: 9090
+
+rules:
+  default: false
+  custom:
+    - seriesQuery: 'http_requests_total{namespace!="",pod!=""}'
+      resources:
+        overrides:
+          namespace:
+            resource: namespace
+          pod:
+            resource: pod
+      name:
+        matches: "^http_requests_total$"
+        as: "http_requests_per_second"
+      # RPS на под = производная счётчика за 1 минуту, агрегированная по подам.
+      metricsQuery: 'sum(rate(<<.Series>>{<<.LabelMatchers>>}[1m])) by (<<.GroupBy>>)'
