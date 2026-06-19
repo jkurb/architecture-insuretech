@@ -1,0 +1,49 @@
+# Тестовое приложение: GET / -> идентификатор пода, GET /metrics -> метрики Prometheus.
+# Оба метода слушают порт 8080. Метрика http_requests_total — счётчик запросов к "/".
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: test-app
+  labels:
+    app: test-app
+spec:
+  replicas: 1                      # начальное количество реплик = 1
+  selector:
+    matchLabels:
+      app: test-app
+  template:
+    metadata:
+      labels:
+        app: test-app
+      annotations:        
+        prometheus.io/scrape: "true"
+        prometheus.io/port: "8080"
+        prometheus.io/path: "/metrics"
+    spec:
+      containers:
+        - name: test-app
+          # Официальный образ — только linux/amd64 (для amd64: CI / Intel / Linux):
+          # image: ghcr.io/yandex-practicum/scaletestapp:latest
+          # Локальный arm64-аналог (Apple Silicon); сборка:
+          #   eval $(minikube docker-env)
+          #   docker build -t scaletestapp-local:arm64 local-verify-arm64/
+          image: scaletestapp-local:arm64
+          imagePullPolicy: Never        # образ собран локально в ноде, из реестра не тянем
+          ports:
+            - name: http
+              containerPort: 8080
+          resources:
+            requests:
+              cpu: "25m"
+              # HPA averageUtilization для memory = usage / request * 100, поэтому
+              # request задаёт базу процента (80% -> 16Mi). request < limit оставляет
+              # запас до OOM: под масштабируется на 80%, но падает только у лимита 30Mi.
+              memory: "20Mi"
+            limits:
+              memory: "30Mi"           # лимит памяти = 30Mi (по условию)
+          readinessProbe:
+            httpGet:
+              path: /
+              port: 8080
+            initialDelaySeconds: 3
+            periodSeconds: 5
